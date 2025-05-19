@@ -1,0 +1,31 @@
+FROM openjdk:8-jdk-slim
+
+WORKDIR /app
+
+# Copy required files
+COPY ImageSearchClient.java /app
+COPY imagesearch.proto /app
+
+# Install gRPC dependencies
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    build-essential \
+    curl \
+    unzip && \
+    curl -OL https://github.com/protocolbuffers/protobuf/releases/download/v3.18.1/protoc-3.18.1-linux-x86_64.zip && \
+    unzip protoc-3.18.1-linux-x86_64.zip -d protoc3 && \
+    mv protoc3/bin/* /usr/local/bin/ && \
+    mv protoc3/include/* /usr/local/include/ && \
+    rm -rf protoc-3.18.1-linux-x86_64.zip protoc3 && \
+    apt-get remove -y curl unzip && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Compile the protocol buffer file
+RUN protoc --java_out=. imagesearch.proto
+
+# Compile the Java code
+RUN javac -cp /usr/local/lib/protobuf-java-3.18.1.jar:/usr/local/lib/grpc/grpc-all-1.43.0.jar:. ImageSearchClient.java
+
+# Set the classpath and execute the Java code
+CMD ["java", "-cp", ".:/usr/local/lib/protobuf-java-3.18.1.jar:/usr/local/lib/grpc/grpc-all-1.43.0.jar", "ImageSearchClient"]
